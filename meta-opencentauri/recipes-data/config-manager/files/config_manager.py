@@ -13,6 +13,7 @@ VALIDATORS = {
     },
     'extras': {
         'elegoo_canvas': ['True', 'False'],
+        'canvas_toolhead': ['True', 'False'],
     },
     'klipper': {
         'sync_camera_led_to_chamber_led': ['True', 'False'],
@@ -32,6 +33,7 @@ VALIDATORS = {
 
 VARIABLE_CONFIG_PATH = '/etc/klipper/config/cosmos.conf'
 DEFAULT_CONFIG_PATH = '/usr/share/config-manager/default.conf'
+CANVAS_AFC_SERIAL_PATH = '/dev/serial/by-path/platform-4200000.usb-usb-0:1.4:1.0'
 
 def validate_config(config : dict):
     for section, options in VALIDATORS.items():
@@ -137,6 +139,31 @@ def merge_configs(default_config : dict, user_config : dict) -> dict:
         default_config[section].update(options)
     return default_config
 
+def set_config_value(section : str, option : str, value : str):
+    default_config = load_config(DEFAULT_CONFIG_PATH)
+    config = load_config(VARIABLE_CONFIG_PATH)
+    default_comments = load_config_comments(DEFAULT_CONFIG_PATH)
+    default_header = load_config_header(DEFAULT_CONFIG_PATH)
+    if section not in config:
+        config[section] = {}
+    config[section][option] = value
+    validate_config(config)
+    if section not in config or option not in config[section]:
+        raise ValueError(f"Invalid value '{value}' for '{option}' in section '{section}'")
+    save_config(VARIABLE_CONFIG_PATH, merge_configs(default_config, config), default_comments, default_header)
+
+def is_canvas_afc_detected() -> bool:
+    return os.path.exists(CANVAS_AFC_SERIAL_PATH)
+
+def get_effective_config_value(config : dict, section : str, option : str) -> str:
+    if section not in config or option not in config[section]:
+        raise ValueError(f"Option '{option}' not found in section '{section}'")
+
+    if section == 'extras' and option == 'elegoo_canvas':
+        return 'True' if is_canvas_afc_detected() else 'False'
+
+    return config[section][option]
+
 def main(section : str, option : str):
     default_config = load_config(DEFAULT_CONFIG_PATH)
     default_comments = load_config_comments(DEFAULT_CONFIG_PATH)
@@ -148,14 +175,20 @@ def main(section : str, option : str):
     if user_config != merged_config or config_needs_update(VARIABLE_CONFIG_PATH, merged_config, default_comments, default_header):
         save_config(VARIABLE_CONFIG_PATH, merged_config, default_comments, default_header)
 
-    if section not in merged_config or option not in merged_config[section]:
-        raise ValueError(f"Option '{option}' not found in section '{section}'")
-
-    print(merged_config[section][option], end='')
+    print(get_effective_config_value(merged_config, section, option), end='')
 
 if __name__ == "__main__":
+    if len(sys.argv) == 5 and sys.argv[1] == "set":
+        try:
+            set_config_value(sys.argv[2], sys.argv[3], sys.argv[4])
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        sys.exit(0)
+
     if len(sys.argv) != 3:
         print("Usage: config_manager <section> <option>", file=sys.stderr)
+        print("       config_manager set <section> <option> <value>", file=sys.stderr)
         sys.exit(1)
 
     section = sys.argv[1]
