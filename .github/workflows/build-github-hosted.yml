@@ -24,9 +24,7 @@ permissions:
 jobs:
   helixscreen-targets:
     # Validate the exact upstream release used by the Yocto recipe before
-    # spending hours on the full firmware image.  CC1 is armv7; MIPS is a
-    # separate K1/AD5X compatibility target and must never replace the CC1
-    # binary in the image.
+    # spending hours on the full firmware image.  CC1 is armv7.
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     env:
@@ -49,18 +47,12 @@ jobs:
         working-directory: helixscreen
         run: make cc1-docker
 
-      - name: Build upstream unified MIPS target
-        working-directory: helixscreen
-        run: make mips-docker
-
-      - name: Upload HelixScreen target binaries
+      - name: Upload HelixScreen CC1 binary
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: helixscreen-v1.0.6-target-validation
-          path: |
-            helixscreen/build/cc1/bin/
-            helixscreen/build/mips/bin/
+          name: helixscreen-v1.0.6-cc1-validation
+          path: helixscreen/build/cc1/bin/
           if-no-files-found: error
           retention-days: 14
 
