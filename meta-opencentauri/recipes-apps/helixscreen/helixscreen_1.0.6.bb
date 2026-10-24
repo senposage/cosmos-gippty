@@ -2,16 +2,17 @@ SUMMARY = "HelixScreen touch interface for Klipper and Moonruster"
 DESCRIPTION = "HelixScreen is a native LVGL touchscreen interface for Klipper printers."
 HOMEPAGE = "https://github.com/prestonbrown/helixscreen"
 LICENSE = "GPL-3.0-only"
-# The upstream CC1 release archive contains only the prebuilt payload, not a
-# copy of its GPL-3.0 license.  Use Yocto's canonical GPL-3.0-only text, as
-# the other binary-payload recipes in this layer do.
+# The hosted image workflow builds the pinned HelixScreen source with its
+# official CC1 Docker toolchain, then stages its `make install` output here.
+# That stage contains runtime payloads only; use Yocto's canonical GPL text.
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-3.0-only;md5=c79ff39f19dfec6d293b95dea7b07891"
 
-SRC_URI = "https://github.com/prestonbrown/helixscreen/releases/download/v${PV}/helixscreen-cc1-v${PV}.tar.gz"
-SRC_URI[sha256sum] = "b528186fb9aceb938b7786c7aba3d3287b2895c5cbe41bc626592f467cbd5fcf"
+HELIXSCREEN_ARTIFACT_DIR ?= "${TOPDIR}/../helixscreen-stage"
+FILESEXTRAPATHS:prepend := "${HELIXSCREEN_ARTIFACT_DIR}:"
+SRC_URI = "file://helixscreen-cc1-built.tar.gz"
 
-# Newer BitBake releases keep unpacked sources in UNPACKDIR and reject
-# WORKDIR as S.  The release archive unpacks its helixscreen/ payload here.
+# Newer BitBake releases keep unpacked sources in UNPACKDIR and reject WORKDIR
+# as S.  The hosted CC1 build archive unpacks its staging tree here.
 S = "${UNPACKDIR}"
 
 inherit update-rc.d
@@ -34,13 +35,10 @@ do_compile() {
 
 do_install() {
     install -d ${D}/opt
-    # The upstream release archive records its build-account ownership
-    # (UID/GID 1001).  Preserve modes and links, but install the payload as
-    # the target root user so sstate packaging does not retain host ownership.
-    cp -a --no-preserve=ownership ${S}/helixscreen ${D}/opt/
+    cp -a --no-preserve=ownership ${S}/opt/helixscreen ${D}/opt/
 
     install -d ${D}${sysconfdir}/init.d
-    install -m 0755 ${S}/helixscreen/config/helixscreen.init \
+    install -m 0755 ${S}/helixscreen.init \
         ${D}${sysconfdir}/init.d/helixscreen
 }
 

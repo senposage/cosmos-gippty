@@ -31,6 +31,10 @@ jobs:
       BB_NUMBER_THREADS: "4"
       PARALLEL_MAKE: "-j 4"
       DEBIAN_FRONTEND: noninteractive
+      # Annotated v1.0.6 tag, resolved to its immutable source commit.  Build
+      # the CC1 payload from this source with HelixScreen's own Docker
+      # toolchain; do not put the generic published release archive in Yocto.
+      HELIXSCREEN_REF: "11230009fa09b4509d0d05f482feaeef2e94c854"
 
     steps:
       - name: Checkout repository and submodules
@@ -63,16 +67,66 @@ jobs:
             yocto-cc1-v1-${{ github.sha }}-
             yocto-cc1-v1-
 
+      - name: Restore HelixScreen CC1 compiler cache
+        id: helix-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .helix-ccache
+          key: helixscreen-cc1-v1-${{ env.HELIXSCREEN_REF }}-${{ github.run_id }}
+          restore-keys: |
+            helixscreen-cc1-v1-${{ env.HELIXSCREEN_REF }}-
+
       - name: Install Yocto host dependencies
         run: |
           sudo apt-get update
           sudo apt-get install --yes \
             bmap-tools build-essential chrpath cpio debianutils diffstat file \
             gawk gcc git iputils-ping libegl1 liblz4-tool libsdl1.2-dev \
-            locales mesa-common-dev pylint python3 python3-git python3-jinja2 \
+            locales mesa-common-dev pylint python3 python3-git python3-jinja2 python3-yaml \
             python3-pexpect python3-pip python3-subunit socat sunxi-tools texinfo \
             unzip wget xterm xz-utils zstd
           sudo locale-gen en_US.UTF-8
+
+      - name: Build and stage a minimal HelixScreen CC1 payload
+        run: |
+          git clone --depth 1 --branch v1.0.6 --recurse-submodules --shallow-submodules \
+            https://github.com/prestonbrown/helixscreen.git helixscreen-src
+          git -C helixscreen-src checkout --detach "${HELIXSCREEN_REF}"
+          test "$(git -C helixscreen-src rev-parse HEAD)" = "${HELIXSCREEN_REF}"
+
+          # This is HelixScreen's prescribed CC1 build target.  It owns the
+          # Docker context, translations, certificate extraction and the
+          # platform's cross-compilation arguments; do not duplicate it here.
+          mkdir -p .helix-ccache
+          make -C helixscreen-src cc1-docker \
+            DOCKER_CCACHE_BASE="$GITHUB_WORKSPACE/.helix-ccache" \
+            NPROC_DOCKER_RUN=4
+
+          mkdir -p helixscreen-stage
+          make -C helixscreen-src PLATFORM_TARGET=cc1 \
+            DESTDIR="$GITHUB_WORKSPACE/helixscreen-stage" install
+
+          # The upstream install target packages the whole optional printer-image
+          # catalog (77 other printers).  CC1 needs its own image, the two
+          # screen-size variants, and the CoreXY fallback; all generic assets,
+          # UI layouts, fonts, translations and configuration stay intact.
+          image_dir=helixscreen-stage/opt/helixscreen/assets/images/printers
+          find "$image_dir" -maxdepth 1 -type f \
+            ! -name 'elegoo-centauri-carbon.png' \
+            ! -name 'generic-corexy.png' -delete
+          find "$image_dir/prerendered" -type f \
+            ! -name 'elegoo-centauri-carbon-150.bin' \
+            ! -name 'elegoo-centauri-carbon-300.bin' \
+            ! -name 'generic-corexy-150.bin' \
+            ! -name 'generic-corexy-300.bin' -delete
+
+          install -m 0755 helixscreen-src/config/helixscreen.init \
+            helixscreen-stage/helixscreen.init
+          tar -C helixscreen-stage -czf helixscreen-stage/helixscreen-cc1-built.tar.gz \
+            opt/helixscreen helixscreen.init
+          test -s helixscreen-stage/helixscreen-cc1-built.tar.gz
+          du -sh helixscreen-stage/opt/helixscreen
+          ls -lh helixscreen-stage/helixscreen-cc1-built.tar.gz
 
       - name: Enable user namespaces for BitBake
         run: |
@@ -137,3 +191,10 @@ jobs:
             build/downloads
             build/sstate-cache
           key: ${{ steps.yocto-cache.outputs.cache-primary-key }}
+
+      - name: Save HelixScreen CC1 compiler cache
+        if: ${{ always() && steps.helix-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: .helix-ccache
+          key: ${{ steps.helix-cache.outputs.cache-primary-key }}
