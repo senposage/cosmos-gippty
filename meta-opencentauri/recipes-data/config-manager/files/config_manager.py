@@ -4,7 +4,7 @@ import os, configparser, sys
 # The first valid value is the fallback when no configured default is present.
 VALIDATORS = {
     'ui': {
-        'screen_ui': ['grumpyscreen', 'guppyscreen', 'atomscreen', 'none'],
+        'screen_ui': ['helixscreen', 'grumpyscreen', 'guppyscreen', 'atomscreen', 'none'],
         'web_ui': ['mainsail', 'fluidd'],
         'screen_brightness': [str(i) for i in range(101)],
     },

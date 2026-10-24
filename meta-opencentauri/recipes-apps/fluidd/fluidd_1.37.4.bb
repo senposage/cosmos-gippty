@@ -19,7 +19,7 @@ S = "${UNPACKDIR}/fluidd"
 
 RDEPENDS:${PN} = " \
     klipper \
-    moonraker \
+    moonruster \
 "
 
 do_configure() {

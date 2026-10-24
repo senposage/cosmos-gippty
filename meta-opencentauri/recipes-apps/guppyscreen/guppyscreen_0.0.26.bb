@@ -23,7 +23,7 @@ DEPENDS = "cmake-native"
 
 RDEPENDS:${PN} = " \
     klipper \
-    moonraker \
+    moonruster \
     gui-switcher \
 "
 

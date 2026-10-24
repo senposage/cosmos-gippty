@@ -22,11 +22,12 @@ CORE_IMAGE_EXTRA_INSTALL += "\
     linux-firmware-rtl8821 \
     aic8800 \
     kalico \
-    moonraker \
+    moonruster \
     mainsail \
     fluidd \
     atomscreen \
     grumpyscreen \
+    helixscreen \
     htop \
     i2c-tools \
     nano \

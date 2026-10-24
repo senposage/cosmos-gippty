@@ -20,7 +20,7 @@ PR = "319"
 
 RDEPENDS:${PN} = " \
     klipper \
-    moonraker \
+    moonruster \
     gui-switcher \
     generate-support-zip \
 "

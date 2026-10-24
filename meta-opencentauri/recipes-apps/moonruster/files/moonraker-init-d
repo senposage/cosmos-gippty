@@ -1,0 +1,42 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          moonraker
+# Required-Start:    $local_fs $remote_fs $network klipper
+# Required-Stop:     $local_fs $remote_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+### END INIT INFO
+
+DAEMON="/usr/bin/moonruster"
+PIDFILE="/var/run/moonraker.pid"
+ARGS="-d /etc/klipper -l /board-resource/moonraker.log -u /run/moonraker.sock"
+
+case "$1" in
+    start)
+        echo "Starting Moonruster..."
+        rm -rf /user-resource/OpenCentauri
+        mkdir -p /user-resource/.tmp /user-resource/gcodes
+        start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $ARGS
+        ;;
+    stop)
+        echo "Stopping Moonruster..."
+        start-stop-daemon -K -p "$PIDFILE" -R 10
+        rm -f "$PIDFILE"
+        ;;
+    restart)
+        "$0" stop
+        "$0" start
+        ;;
+    status)
+        if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+            echo "Moonruster is running (PID $(cat "$PIDFILE"))"
+        else
+            echo "Moonruster is not running"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac

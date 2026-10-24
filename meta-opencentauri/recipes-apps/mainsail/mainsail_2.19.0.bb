@@ -14,7 +14,7 @@ S = "${UNPACKDIR}/mainsail"
 
 RDEPENDS:${PN} = " \
     klipper \
-    moonraker \
+    moonruster \
 "
 
 do_configure() {
