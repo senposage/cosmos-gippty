@@ -50,7 +50,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes \
             bmap-tools build-essential chrpath cpio debianutils diffstat file \
-            gawk gcc git iputils-ping libegl1-mesa liblz4-tool libsdl1.2-dev \
+            gawk gcc git iputils-ping libegl1 liblz4-tool libsdl1.2-dev \
             locales mesa-common-dev pylint python3 python3-git python3-jinja2 \
             python3-pexpect python3-pip python3-subunit socat sunxi-tools texinfo \
             unzip wget xterm xz-utils zstd
