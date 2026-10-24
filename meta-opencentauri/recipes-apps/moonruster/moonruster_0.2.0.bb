@@ -2,6 +2,9 @@ SUMMARY = "Moonruster - Rust Moonraker-compatible API server"
 DESCRIPTION = "Moonruster is a drop-in, Rust implementation of the Moonraker API server for Klipper."
 HOMEPAGE = "https://github.com/senposage/moonruster"
 LICENSE = "GPL-3.0-only"
+# The upstream release is a bare prebuilt ARMv7 binary, so it does not carry
+# a separate license file.  Reference Yocto's canonical GPL-3.0-only text.
+LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-3.0-only;md5=c79ff39f19dfec6d293b95dea7b07891"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:${THISDIR}/../moonraker/files:"
 
