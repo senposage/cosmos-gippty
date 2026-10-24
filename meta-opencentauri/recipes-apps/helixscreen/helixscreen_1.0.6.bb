@@ -7,7 +7,9 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 SRC_URI = "https://github.com/prestonbrown/helixscreen/releases/download/v${PV}/helixscreen-cc1-v${PV}.tar.gz"
 SRC_URI[sha256sum] = "b528186fb9aceb938b7786c7aba3d3287b2895c5cbe41bc626592f467cbd5fcf"
 
-S = "${WORKDIR}"
+# Newer BitBake releases keep unpacked sources in UNPACKDIR and reject
+# WORKDIR as S.  The release archive unpacks its helixscreen/ payload here.
+S = "${UNPACKDIR}"
 
 inherit update-rc.d
 

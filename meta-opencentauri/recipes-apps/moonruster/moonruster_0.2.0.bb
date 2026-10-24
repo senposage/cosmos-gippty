@@ -12,7 +12,9 @@ SRC_URI = " \
 "
 SRC_URI[sha256sum] = "e819e476238f0448a42179655cbc121f26f7551d9ca04152f55df4e92828b58b"
 
-S = "${WORKDIR}"
+# Keep this prebuilt binary recipe compatible with current BitBake, which
+# rejects WORKDIR as S and places fetched/unpacked files in UNPACKDIR.
+S = "${UNPACKDIR}"
 
 inherit update-rc.d
 
@@ -35,21 +37,21 @@ do_compile() {
 
 do_install() {
     install -d ${D}${bindir}
-    install -m 0755 ${WORKDIR}/moonruster ${D}${bindir}/moonruster
+    install -m 0755 ${S}/moonruster ${D}${bindir}/moonruster
 
     install -d ${D}${sysconfdir}/klipper/config
-    install -m 0644 ${WORKDIR}/moonraker.conf \
+    install -m 0644 ${S}/moonraker.conf \
         ${D}${sysconfdir}/klipper/config/moonraker.conf
 
     install -d ${D}${sysconfdir}/klipper/config/moonraker-readonly
-    install -m 0644 ${WORKDIR}/moonraker-readonly.conf \
+    install -m 0644 ${S}/moonraker-readonly.conf \
         ${D}${sysconfdir}/klipper/config/moonraker-readonly/moonraker.conf
 
     ln -sfn /user-resource/gcodes ${D}${sysconfdir}/klipper/gcodes
     ln -sfn /board-resource ${D}${sysconfdir}/klipper/logs
 
     install -d ${D}${sysconfdir}/init.d
-    install -m 0755 ${WORKDIR}/moonraker-init-d ${D}${sysconfdir}/init.d/moonraker
+    install -m 0755 ${S}/moonraker-init-d ${D}${sysconfdir}/init.d/moonraker
 }
 
 FILES:${PN} = " \
