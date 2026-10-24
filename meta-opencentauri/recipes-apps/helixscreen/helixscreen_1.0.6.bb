@@ -2,7 +2,10 @@ SUMMARY = "HelixScreen touch interface for Klipper and Moonruster"
 DESCRIPTION = "HelixScreen is a native LVGL touchscreen interface for Klipper printers."
 HOMEPAGE = "https://github.com/prestonbrown/helixscreen"
 LICENSE = "GPL-3.0-only"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
+# The upstream CC1 release archive contains only the prebuilt payload, not a
+# copy of its GPL-3.0 license.  Use Yocto's canonical GPL-3.0-only text, as
+# the other binary-payload recipes in this layer do.
+LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-3.0-only;md5=c79ff39f19dfec6d293b95dea7b07891"
 
 SRC_URI = "https://github.com/prestonbrown/helixscreen/releases/download/v${PV}/helixscreen-cc1-v${PV}.tar.gz"
 SRC_URI[sha256sum] = "b528186fb9aceb938b7786c7aba3d3287b2895c5cbe41bc626592f467cbd5fcf"
