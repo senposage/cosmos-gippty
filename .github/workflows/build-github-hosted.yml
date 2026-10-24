@@ -1,4 +1,4 @@
-name: Build CC1 image (GitHub-hosted)
+name: Validate HelixScreen and build CC1 image (GitHub-hosted)
 
 on:
   workflow_dispatch:
@@ -22,9 +22,52 @@ permissions:
   contents: read
 
 jobs:
+  helixscreen-targets:
+    # Validate the exact upstream release used by the Yocto recipe before
+    # spending hours on the full firmware image.  CC1 is armv7; MIPS is a
+    # separate K1/AD5X compatibility target and must never replace the CC1
+    # binary in the image.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      DEBIAN_FRONTEND: noninteractive
+
+    steps:
+      - name: Check out HelixScreen v1.0.6 with submodules
+        run: |
+          git clone --depth 1 --branch v1.0.6 --recurse-submodules \
+            https://github.com/prestonbrown/helixscreen.git helixscreen
+
+      - name: Install HelixScreen build dependencies
+        working-directory: helixscreen
+        run: |
+          # The upstream target asks before using apt; give that explicit
+          # confirmation in the non-interactive hosted runner.
+          printf 'y\n' | make install-deps
+
+      - name: Build official CC1 target
+        working-directory: helixscreen
+        run: make cc1-docker
+
+      - name: Build upstream unified MIPS target
+        working-directory: helixscreen
+        run: make mips-docker
+
+      - name: Upload HelixScreen target binaries
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: helixscreen-v1.0.6-target-validation
+          path: |
+            helixscreen/build/cc1/bin/
+            helixscreen/build/mips/bin/
+          if-no-files-found: error
+          retention-days: 14
+
   build:
     # Manual-only: a full Yocto build is resource intensive and should never
     # start merely because a branch was pushed.
+    needs: helixscreen-targets
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:

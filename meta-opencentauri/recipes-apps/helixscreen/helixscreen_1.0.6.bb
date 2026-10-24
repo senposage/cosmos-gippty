@@ -11,7 +11,11 @@ S = "${WORKDIR}"
 
 inherit update-rc.d
 
-RDEPENDS:${PN} = "moonruster gui-switcher"
+# The upstream CC1 installer uses config-manager and gui-switcher to select
+# the UI.  In a firmware image the payload stays under /opt: /user-resource is
+# an empty ext4 partition mounted at boot, so payload files placed there by
+# do_install would be hidden at runtime.
+RDEPENDS:${PN} = "moonruster config-manager gui-switcher"
 
 INITSCRIPT_NAME = "helixscreen"
 INITSCRIPT_PARAMS = "disable"
