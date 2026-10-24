@@ -114,11 +114,15 @@ jobs:
           find "$image_dir" -maxdepth 1 -type f \
             ! -name 'elegoo-centauri-carbon.png' \
             ! -name 'generic-corexy.png' -delete
-          find "$image_dir/prerendered" -type f \
-            ! -name 'elegoo-centauri-carbon-150.bin' \
-            ! -name 'elegoo-centauri-carbon-300.bin' \
-            ! -name 'generic-corexy-150.bin' \
-            ! -name 'generic-corexy-300.bin' -delete
+          # Source-built CC1 staging may omit pre-rendered previews entirely.
+          # When present, retain CC1 and generic-CoreXY fallback previews only.
+          if [ -d "$image_dir/prerendered" ]; then
+            find "$image_dir/prerendered" -type f \
+              ! -name 'elegoo-centauri-carbon-150.bin' \
+              ! -name 'elegoo-centauri-carbon-300.bin' \
+              ! -name 'generic-corexy-150.bin' \
+              ! -name 'generic-corexy-300.bin' -delete
+          fi
 
           install -m 0755 helixscreen-src/config/helixscreen.init \
             helixscreen-stage/helixscreen.init
