@@ -15,8 +15,8 @@ DEPENDS += "gcc-arm-none-eabi-native"
 RDEPENDS:${PN} = " \
     flashtool \
     bed-bootloader-upgrade \
-    mcu-flasher \
 "
+RDEPENDS:${PN}:append:centauri-carbon-2 = " mcu-flasher"
 
 RPROVIDES:${PN} += "klipper-firmware-bed"
 

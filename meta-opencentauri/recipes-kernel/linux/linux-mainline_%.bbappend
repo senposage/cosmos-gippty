@@ -21,5 +21,9 @@ SRC_URI:append = " \
 	file://0001-Add-support-for-st77922-touchscreen-driver.patch \
 "
 
+# The Carbon 1 is a printer appliance with no audio hardware or UI audio path.
+# Keep this machine-specific so shared kernel support for Carbon 2 is unchanged.
+SRC_URI:append:centauri-carbon-1 = " file://cc1-no-audio.cfg"
+
 KERNEL_MODULE_PROBECONF += "rtw88_core"
 module_conf_rtw88_core = "options rtw88_core disable_lps_deep=Y"

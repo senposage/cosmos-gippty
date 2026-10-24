@@ -3,9 +3,19 @@ LICENSE = "GPL-3.0-only"
 
 IMAGE_INSTALL = " \
     packagegroup-core-boot \
-    packagegroup-base-wifi \
+    iw \
+    wireless-regdb-static \
+    wpa-supplicant \
+    avahi-daemon \
+    libnss-mdns \
     ${CORE_IMAGE_EXTRA_INSTALL} \
 "
+
+# Do not install packagegroup-base-wifi here.  It is a subpackage of the
+# monolithic packagegroup-base recipe, which makes BitBake build unrelated
+# audio, serial, NFS, and other base-packagegroup branches.  The Wi-Fi entries
+# are the exact runtime dependencies from that subpackage; Avahi is listed
+# explicitly so printer discovery via .local remains available.
 
 IMAGE_LINGUAS = " "
 
@@ -54,6 +64,17 @@ CORE_IMAGE_EXTRA_INSTALL += "\
 "
 
 CORE_IMAGE_EXTRA_INSTALL:append:centauri-carbon-2 = " centauri-carbon-2-detect"
+
+# CC1 ships HelixScreen and Mainsail as its supported interfaces.  Do not
+# schedule the legacy screen stacks (especially AtomScreen's large Rust and
+# graphics dependency tree) and Doom for the production CC1 appliance image.
+# Keep both supported web UIs, field-service tools, recovery, update, camera,
+# networking, and printer-control packages in the shared base image.
+CORE_IMAGE_EXTRA_INSTALL:remove:centauri-carbon-1 = " \
+    atomscreen \
+    grumpyscreen \
+    fbdoom \
+"
 
 INITRAMFS_IMAGE = "core-image-tiny-initramfs"
 INITRAMFS_FSTYPES = "cpio.gz"

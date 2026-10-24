@@ -3,12 +3,13 @@ DESCRIPTION = "Moonruster is a drop-in, Rust implementation of the Moonraker API
 HOMEPAGE = "https://github.com/senposage/moonruster"
 LICENSE = "GPL-3.0-only"
 
-FILESEXTRAPATHS:prepend := "${THISDIR}/../moonraker/files:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:${THISDIR}/../moonraker/files:"
 
 SRC_URI = " \
     https://github.com/senposage/moonruster/releases/download/v${PV}/moonruster-linux-armv7;downloadfilename=moonruster \
     file://moonraker.conf \
     file://moonraker-readonly.conf \
+    file://moonraker-init-d \
 "
 SRC_URI[sha256sum] = "e819e476238f0448a42179655cbc121f26f7551d9ca04152f55df4e92828b58b"
 

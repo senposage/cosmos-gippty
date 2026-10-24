@@ -14,8 +14,8 @@ RDEPENDS:${PN} = " \
     flashtool \
     canvas-bootloader-upgrade \
     config-manager \
-    mcu-flasher \
 "
+RDEPENDS:${PN}:append:centauri-carbon-2 = " mcu-flasher"
 
 RPROVIDES:${PN} += "klipper-firmware-canvas"
 
