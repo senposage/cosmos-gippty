@@ -41,9 +41,27 @@ jobs:
 
       - name: Reclaim runner disk space
         run: |
+          # GitHub-hosted runners are ephemeral.  Keep Yocto's downloads and
+          # sstate in the Actions cache below; this only removes preinstalled
+          # runner tooling that the CC1 image build does not use.
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
           sudo docker image prune --all --force
           df -h
+
+      - name: Restore Yocto downloads and sstate cache
+        id: yocto-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/downloads
+            build/sstate-cache
+          # Cache entries are immutable.  A new dispatched run writes an
+          # updated entry; restore-keys selects the most recent compatible
+          # cache for this CC1 workflow first.
+          key: yocto-cc1-v1-${{ github.sha }}-${{ github.run_id }}
+          restore-keys: |
+            yocto-cc1-v1-${{ github.sha }}-
+            yocto-cc1-v1-
 
       - name: Install Yocto host dependencies
         run: |
@@ -91,3 +109,12 @@ jobs:
             build/tmp/work/**/temp/log.*
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Save Yocto downloads and sstate cache
+        if: ${{ always() && steps.yocto-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/downloads
+            build/sstate-cache
+          key: ${{ steps.yocto-cache.outputs.cache-primary-key }}
