@@ -90,8 +90,17 @@ jobs:
             source openembedded-core/oe-init-build-env build
           MACHINE=centauri-carbon-1 bitbake ${{ inputs.target }}
 
+      - name: Upload CC1 update bundle
+        if: ${{ success() && inputs.upload_all_artifacts && inputs.target == 'cosmos' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: centauri-carbon-1-cosmos-update
+          path: build/tmp/deploy/images/centauri-carbon-1/cosmos-centauri-carbon-1.swu
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload CC1 deployment artifacts
-        if: ${{ success() && inputs.upload_all_artifacts }}
+        if: ${{ success() && inputs.upload_all_artifacts && inputs.target != 'cosmos' }}
         uses: actions/upload-artifact@v4
         with:
           name: centauri-carbon-1-${{ inputs.target }}
