@@ -99,14 +99,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Stage BitBake logs on failure
+        if: ${{ failure() }}
+        run: |
+          mkdir -p build/failure-logs
+          if [ -d build/tmp/log ]; then
+            cp -a build/tmp/log build/failure-logs/
+          fi
+          if [ -d build/tmp/work ]; then
+            find -P build/tmp/work -type f -path '*/temp/log.*' \
+              -exec cp --parents -t build/failure-logs {} +
+          fi
+
       - name: Upload BitBake logs on failure
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: centauri-carbon-1-build-logs
-          path: |
-            build/tmp/log/
-            build/tmp/work/**/temp/log.*
+          path: build/failure-logs/
           if-no-files-found: warn
           retention-days: 14
 

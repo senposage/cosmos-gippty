@@ -31,7 +31,10 @@ do_compile() {
 
 do_install() {
     install -d ${D}/opt
-    cp -a ${S}/helixscreen ${D}/opt/
+    # The upstream release archive records its build-account ownership
+    # (UID/GID 1001).  Preserve modes and links, but install the payload as
+    # the target root user so sstate packaging does not retain host ownership.
+    cp -a --no-preserve=ownership ${S}/helixscreen ${D}/opt/
 
     install -d ${D}${sysconfdir}/init.d
     install -m 0755 ${S}/helixscreen/config/helixscreen.init \
