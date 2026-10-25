@@ -106,6 +106,17 @@ jobs:
           make -C helixscreen-src PLATFORM_TARGET=cc1 \
             DESTDIR="$GITHUB_WORKSPACE/helixscreen-stage" install
 
+          # `make install` stages every platform hook as data.  The official
+          # Helix installer then selects the detected platform and copies it
+          # to platform/hooks.sh, which the SysV init script sources at boot.
+          # This image is fixed to CC1, so reproduce that installer step.
+          install -d helixscreen-stage/opt/helixscreen/platform
+          install -m 0755 \
+            helixscreen-stage/opt/helixscreen/assets/config/platform/hooks-cc1.sh \
+            helixscreen-stage/opt/helixscreen/platform/hooks.sh
+          test -x helixscreen-stage/opt/helixscreen/bin/helix-screen
+          test -s helixscreen-stage/opt/helixscreen/platform/hooks.sh
+
           # The upstream install target packages the whole optional printer-image
           # catalog (77 other printers).  CC1 needs its own image, the two
           # screen-size variants, and the CoreXY fallback; all generic assets,
