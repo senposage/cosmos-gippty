@@ -5,7 +5,10 @@ DESCRIPTION = "Cosmos eMMC Image"
 LICENSE = "GPL-3.0-only"
 
 IMAGE_FSTYPES += "wic squashfs"
+# Use LZ4's high-compression encoder for CC1.  The on-device LZ4 decoder,
+# block size and filesystem contents stay the same.
 EXTRA_IMAGECMD:squashfs = "-comp lz4"
+EXTRA_IMAGECMD:squashfs:append:centauri-carbon-1 = " -Xhc"
 
 IMAGE_FEATURES += "read-only-rootfs overlayfs-etc"
 

@@ -53,20 +53,18 @@ jobs:
           sudo docker image prune --all --force
           df -h
 
-      - name: Restore Yocto downloads and sstate cache
+      - name: Restore Yocto compiled sstate cache
         id: yocto-cache
         uses: actions/cache/restore@v4
         with:
-          path: |
-            build/downloads
-            build/sstate-cache
+          path: build/sstate-cache
           # Cache entries are immutable.  A new dispatched run writes an
           # updated entry; restore-keys selects the most recent compatible
           # cache for this CC1 workflow first.
-          key: yocto-cc1-v2-${{ github.sha }}-${{ github.run_id }}
+          key: yocto-cc1-v3-${{ github.sha }}-${{ github.run_id }}
           restore-keys: |
-            yocto-cc1-v2-${{ github.sha }}-
-            yocto-cc1-v2-
+            yocto-cc1-v3-${{ github.sha }}-
+            yocto-cc1-v3-
 
       - name: Restore HelixScreen CC1 compiler cache
         id: helix-cache
@@ -228,62 +226,57 @@ jobs:
         if: ${{ always() }}
         shell: bash
         run: |
-          # GitHub does not retain the prior 12 GB cache entry.  Reserve about
-          # 6 GiB for Yocto so it coexists with the retained 2.6 GB CC1 compiler
-          # cache.  Downloads are kept first; the oldest independent sstate
-          # objects are discarded only from this ephemeral runner copy.
-          cache_limit_bytes=$((6 * 1024 * 1024 * 1024))
-          download_dir=build/downloads
+          # Preserve compiled tasks first.  The source downloads alone exceed
+          # the cache budget; prioritizing them previously erased all sstate.
+          # 6 GiB of sstate plus the 2.6 GB Helix cache fits the shared budget.
+          # Sources can be fetched again; do not cache build/downloads here.
+          sstate_limit=$((6 * 1024 * 1024 * 1024))
           sstate_dir=build/sstate-cache
-          mkdir -p "$download_dir" "$sstate_dir"
-
-          downloads_bytes=$(du -sb "$download_dir" | awk '{print $1}')
-          sstate_limit=$((cache_limit_bytes - downloads_bytes))
-          if [ "$sstate_limit" -le 0 ]; then
-            find -P "$sstate_dir" -type f -delete
-          else
-            sstate_bytes=$(du -sb "$sstate_dir" | awk '{print $1}')
-            if [ "$sstate_bytes" -gt "$sstate_limit" ]; then
-              while read -r _modified file_bytes file_path; do
-                [ "$sstate_bytes" -le "$sstate_limit" ] && break
-                rm -f -- "$file_path"
-                sstate_bytes=$((sstate_bytes - file_bytes))
-              done < <(find -P "$sstate_dir" -type f -printf '%T@ %s %p\n' | LC_ALL=C sort -n)
-              find -P "$sstate_dir" -depth -type d -empty -delete
-            fi
+          mkdir -p "$sstate_dir"
+          sstate_bytes=$(du -sb "$sstate_dir" | awk '{print $1}')
+          if [ "$sstate_bytes" -gt "$sstate_limit" ]; then
+            while read -r _modified file_bytes file_path; do
+              [ "$sstate_bytes" -le "$sstate_limit" ] && break
+              rm -f -- "$file_path"
+              sstate_bytes=$((sstate_bytes - file_bytes))
+            done < <(find -P "$sstate_dir" -type f -printf '%T@ %s %p\n' | LC_ALL=C sort -n)
+            find -P "$sstate_dir" -depth -type d -empty -delete
           fi
-
-          if find -P "$download_dir" "$sstate_dir" -type f -print -quit | grep -q .; then
+          if find -P "$sstate_dir" -type f -print -quit | grep -q .; then
             echo "has-files=true" >> "$GITHUB_OUTPUT"
           else
             echo "has-files=false" >> "$GITHUB_OUTPUT"
           fi
-          du -sh "$download_dir" "$sstate_dir"
+          du -sh "$sstate_dir"
 
-      - name: Remove superseded hosted build caches
-        # Keep capacity for exactly one bounded Yocto snapshot and one pinned
-        # Helix CC1 cache.  The restored cache is already local to this runner,
-        # so eviction here cannot affect the build that just consumed it.
-        if: ${{ always() }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          gh api --paginate \
-            "/repos/${GITHUB_REPOSITORY}/actions/caches?ref=${GITHUB_REF}&per_page=100" \
-            --jq '.actions_caches[] | select(.key | startswith("yocto-cc1-v2-") or startswith("helixscreen-cc1-v1-")) | .id' \
-            | while read -r cache_id; do
-                gh api --method DELETE "/repos/${GITHUB_REPOSITORY}/actions/caches/${cache_id}"
-              done
-
-      - name: Save Yocto downloads and sstate cache
+      - name: Save Yocto compiled sstate cache
+        id: yocto-cache-save
         if: ${{ always() && steps.yocto-cache.outputs.cache-hit != 'true' && steps.yocto-cache-prune.outputs.has-files == 'true' }}
         uses: actions/cache/save@v4
         with:
-          path: |
-            build/downloads
-            build/sstate-cache
+          path: build/sstate-cache
           key: ${{ steps.yocto-cache.outputs.cache-primary-key }}
+
+      - name: Remove superseded hosted build caches
+        # Confirm the new snapshot exists before retiring previous entries.
+        if: ${{ always() && steps.yocto-cache-save.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEP_CACHE_KEY: ${{ steps.yocto-cache.outputs.cache-primary-key }}
+        shell: bash
+        run: |
+          caches=$(gh api --paginate --slurp \
+            "/repos/${GITHUB_REPOSITORY}/actions/caches?ref=${GITHUB_REF}&per_page=100")
+          if ! jq -e --arg keep "$KEEP_CACHE_KEY" \
+            'any(.[].actions_caches[]; .key == $keep)' <<< "$caches" >/dev/null; then
+            echo "New cache is not present; keeping previous entries."
+            exit 0
+          fi
+          jq -r --arg keep "$KEEP_CACHE_KEY" \
+            '.[].actions_caches[] | select(.key != $keep) | select(.key | startswith("yocto-cc1-v2-") or startswith("yocto-cc1-v3-") or startswith("helixscreen-cc1-v1-")) | .id' <<< "$caches" \
+            | while read -r cache_id; do
+                gh api --method DELETE "/repos/${GITHUB_REPOSITORY}/actions/caches/${cache_id}"
+              done
 
       - name: Save HelixScreen CC1 compiler cache
         if: ${{ always() && steps.helix-cache.outputs.cache-hit != 'true' }}
