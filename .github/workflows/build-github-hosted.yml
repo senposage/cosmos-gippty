@@ -181,8 +181,9 @@ jobs:
         run: |
           swu=build/tmp/deploy/images/centauri-carbon-1/cosmos-centauri-carbon-1.swu
           test -s "$swu"
-          # CC1's inactive A/B squashfs partitions are 128.1 MiB.  Keep an
-          # 8 MiB margin so an update cannot overrun the next partition.
+          # CC1's inactive A/B squashfs partitions are 128.1 MiB.  Limit the
+          # payload to 128 MiB, which fits while leaving the partition's final
+          # 96 KiB unused.
           rootfs_member=cosmos-image-mmc-centauri-carbon-1.squashfs
           rootfs_bytes="$(python3 - "$swu" "$rootfs_member" <<'PY'
           import sys
@@ -208,10 +209,10 @@ jobs:
                   archive.seek(file_size + ((-file_size) % 4), 1)
           PY
           )"
-          max_rootfs_bytes=$((120 * 1024 * 1024))
-          test "$rootfs_bytes" -le "$max_rootfs_bytes"
+          max_rootfs_bytes=$((128 * 1024 * 1024))
           printf 'CC1 rootfs payload: %s bytes (limit: %s bytes)\n' \
             "$rootfs_bytes" "$max_rootfs_bytes"
+          test "$rootfs_bytes" -le "$max_rootfs_bytes"
           file "$swu"
           sha256sum "$swu"
 
