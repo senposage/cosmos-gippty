@@ -62,10 +62,10 @@ jobs:
           # Cache entries are immutable.  A new dispatched run writes an
           # updated entry; restore-keys selects the most recent compatible
           # cache for this CC1 workflow first.
-          key: yocto-cc1-v1-${{ github.sha }}-${{ github.run_id }}
+          key: yocto-cc1-v2-${{ github.sha }}-${{ github.run_id }}
           restore-keys: |
-            yocto-cc1-v1-${{ github.sha }}-
-            yocto-cc1-v1-
+            yocto-cc1-v2-${{ github.sha }}-
+            yocto-cc1-v2-
 
       - name: Restore HelixScreen CC1 compiler cache
         id: helix-cache
@@ -198,8 +198,45 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Bound Yocto cache contents
+        id: yocto-cache-prune
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          # GitHub does not retain the prior 12 GB cache entry.  Reserve about
+          # 6 GiB for Yocto so it coexists with the retained 2.6 GB CC1 compiler
+          # cache.  Downloads are kept first; the oldest independent sstate
+          # objects are discarded only from this ephemeral runner copy.
+          cache_limit_bytes=$((6 * 1024 * 1024 * 1024))
+          download_dir=build/downloads
+          sstate_dir=build/sstate-cache
+          mkdir -p "$download_dir" "$sstate_dir"
+
+          downloads_bytes=$(du -sb "$download_dir" | awk '{print $1}')
+          sstate_limit=$((cache_limit_bytes - downloads_bytes))
+          if [ "$sstate_limit" -le 0 ]; then
+            find -P "$sstate_dir" -type f -delete
+          else
+            sstate_bytes=$(du -sb "$sstate_dir" | awk '{print $1}')
+            if [ "$sstate_bytes" -gt "$sstate_limit" ]; then
+              while read -r _modified file_bytes file_path; do
+                [ "$sstate_bytes" -le "$sstate_limit" ] && break
+                rm -f -- "$file_path"
+                sstate_bytes=$((sstate_bytes - file_bytes))
+              done < <(find -P "$sstate_dir" -type f -printf '%T@ %s %p\n' | LC_ALL=C sort -n)
+              find -P "$sstate_dir" -depth -type d -empty -delete
+            fi
+          fi
+
+          if find -P "$download_dir" "$sstate_dir" -type f -print -quit | grep -q .; then
+            echo "has-files=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-files=false" >> "$GITHUB_OUTPUT"
+          fi
+          du -sh "$download_dir" "$sstate_dir"
+
       - name: Save Yocto downloads and sstate cache
-        if: ${{ always() && steps.yocto-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.yocto-cache.outputs.cache-hit != 'true' && steps.yocto-cache-prune.outputs.has-files == 'true' }}
         uses: actions/cache/save@v4
         with:
           path: |
@@ -208,7 +245,9 @@ jobs:
           key: ${{ steps.yocto-cache.outputs.cache-primary-key }}
 
       - name: Save HelixScreen CC1 compiler cache
-        if: ${{ always() && steps.helix-cache.outputs.cache-hit != 'true' }}
+        # A prefix-restored cache is usable but reports cache-hit=false; do not
+        # create another multi-gigabyte key in that case.
+        if: ${{ always() && steps.helix-cache.outputs.cache-matched-key == '' }}
         uses: actions/cache/save@v4
         with:
           path: .helix-ccache
