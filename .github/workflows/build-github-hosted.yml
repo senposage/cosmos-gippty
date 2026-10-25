@@ -148,6 +148,9 @@ jobs:
           font_dir=helixscreen-stage/opt/helixscreen/assets/fonts
           find "$font_dir" -maxdepth 1 -type f \( -name '*.c' -o -name '*.ttf' \) -delete
           rm -f helixscreen-stage/opt/helixscreen/assets/images/helix-icon.icns
+          # CC1 has no speaker and its Helix build does not compile the tracker
+          # player, so its bundled MOD/MED music cannot be played.
+          rm -rf helixscreen-stage/opt/helixscreen/assets/sounds
 
           install -m 0755 helixscreen-src/config/helixscreen.init \
             helixscreen-stage/helixscreen.init
