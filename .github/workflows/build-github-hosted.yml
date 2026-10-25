@@ -195,7 +195,10 @@ jobs:
                       raise SystemExit("invalid SWUpdate cpio archive")
                   fields = [int(header[6 + index * 8:14 + index * 8], 16) for index in range(13)]
                   file_size, name_size = fields[6], fields[11]
-                  name = archive.read(name_size).rstrip(b"\\0").decode("utf-8")
+                  raw_name = archive.read(name_size)
+                  if not raw_name.endswith(bytes((0,))):
+                      raise SystemExit("invalid SWUpdate cpio filename")
+                  name = raw_name[:-1].decode("utf-8")
                   archive.seek((-archive.tell()) % 4, 1)
                   if name == wanted_name:
                       print(file_size)
