@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: Yocto image target to build
+        description: Yocto target to build; cosmos produces the flashable SWUpdate bundle
         required: true
-        default: cosmos-image-usb
+        default: cosmos
         type: choice
         options:
+          - cosmos
           - cosmos-image-usb
           - cosmos-image-mmc
-          - cosmos
       upload_all_artifacts:
         description: Upload the complete CC1 deployment directory
         required: true
