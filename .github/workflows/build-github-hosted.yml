@@ -124,8 +124,7 @@ jobs:
 
           # The upstream install target packages the whole optional printer-image
           # catalog (77 other printers).  CC1 needs its own image, the two
-          # screen-size variants, and the CoreXY fallback; all generic assets,
-          # UI layouts, fonts, translations and configuration stay intact.
+          # screen-size variants, and the CoreXY fallback.
           image_dir=helixscreen-stage/opt/helixscreen/assets/images/printers
           find "$image_dir" -maxdepth 1 -type f \
             ! -name 'elegoo-centauri-carbon.png' \
@@ -139,6 +138,16 @@ jobs:
               ! -name 'generic-corexy-150.bin' \
               ! -name 'generic-corexy-300.bin' -delete
           fi
+
+          # cc1-docker statically links HelixScreen's generated LVGL font
+          # tables into bin/helix-screen.  `make install` also copies their
+          # build inputs (C sources and raw TTFs), but the executable contains
+          # no paths to either format.  Keep the CJK .bin files: those are
+          # loaded dynamically for translated UI text.  The .icns file is a
+          # macOS desktop icon and cannot be used by the CC1 framebuffer UI.
+          font_dir=helixscreen-stage/opt/helixscreen/assets/fonts
+          find "$font_dir" -maxdepth 1 -type f \( -name '*.c' -o -name '*.ttf' \) -delete
+          rm -f helixscreen-stage/opt/helixscreen/assets/images/helix-icon.icns
 
           install -m 0755 helixscreen-src/config/helixscreen.init \
             helixscreen-stage/helixscreen.init
@@ -169,6 +178,34 @@ jobs:
         run: |
           swu=build/tmp/deploy/images/centauri-carbon-1/cosmos-centauri-carbon-1.swu
           test -s "$swu"
+          # CC1's inactive A/B squashfs partitions are 128.1 MiB.  Keep an
+          # 8 MiB margin so an update cannot overrun the next partition.
+          rootfs_member=cosmos-image-mmc-centauri-carbon-1.squashfs
+          rootfs_bytes="$(python3 - "$swu" "$rootfs_member" <<'PY'
+          import sys
+
+          swu_path, wanted_name = sys.argv[1:]
+          with open(swu_path, "rb") as archive:
+              while True:
+                  header = archive.read(110)
+                  if len(header) != 110 or header[:6] not in (b"070701", b"070702"):
+                      raise SystemExit("invalid SWUpdate cpio archive")
+                  fields = [int(header[6 + index * 8:14 + index * 8], 16) for index in range(13)]
+                  file_size, name_size = fields[6], fields[11]
+                  name = archive.read(name_size).rstrip(b"\\0").decode("utf-8")
+                  archive.seek((-archive.tell()) % 4, 1)
+                  if name == wanted_name:
+                      print(file_size)
+                      break
+                  if name == "TRAILER!!!":
+                      raise SystemExit(f"{wanted_name} missing from SWUpdate archive")
+                  archive.seek(file_size + ((-file_size) % 4), 1)
+          PY
+          )"
+          max_rootfs_bytes=$((120 * 1024 * 1024))
+          test "$rootfs_bytes" -le "$max_rootfs_bytes"
+          printf 'CC1 rootfs payload: %s bytes (limit: %s bytes)\n' \
+            "$rootfs_bytes" "$max_rootfs_bytes"
           file "$swu"
           sha256sum "$swu"
 
