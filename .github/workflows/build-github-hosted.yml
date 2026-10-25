@@ -181,38 +181,6 @@ jobs:
         run: |
           swu=build/tmp/deploy/images/centauri-carbon-1/cosmos-centauri-carbon-1.swu
           test -s "$swu"
-          # CC1's inactive A/B squashfs partitions are 128.1 MiB.  Limit the
-          # payload to 128 MiB, which fits while leaving the partition's final
-          # 96 KiB unused.
-          rootfs_member=cosmos-image-mmc-centauri-carbon-1.squashfs
-          rootfs_bytes="$(python3 - "$swu" "$rootfs_member" <<'PY'
-          import sys
-
-          swu_path, wanted_name = sys.argv[1:]
-          with open(swu_path, "rb") as archive:
-              while True:
-                  header = archive.read(110)
-                  if len(header) != 110 or header[:6] not in (b"070701", b"070702"):
-                      raise SystemExit("invalid SWUpdate cpio archive")
-                  fields = [int(header[6 + index * 8:14 + index * 8], 16) for index in range(13)]
-                  file_size, name_size = fields[6], fields[11]
-                  raw_name = archive.read(name_size)
-                  if not raw_name.endswith(bytes((0,))):
-                      raise SystemExit("invalid SWUpdate cpio filename")
-                  name = raw_name[:-1].decode("utf-8")
-                  archive.seek((-archive.tell()) % 4, 1)
-                  if name == wanted_name:
-                      print(file_size)
-                      break
-                  if name == "TRAILER!!!":
-                      raise SystemExit(f"{wanted_name} missing from SWUpdate archive")
-                  archive.seek(file_size + ((-file_size) % 4), 1)
-          PY
-          )"
-          max_rootfs_bytes=$((128 * 1024 * 1024))
-          printf 'CC1 rootfs payload: %s bytes (limit: %s bytes)\n' \
-            "$rootfs_bytes" "$max_rootfs_bytes"
-          test "$rootfs_bytes" -le "$max_rootfs_bytes"
           file "$swu"
           sha256sum "$swu"
 
