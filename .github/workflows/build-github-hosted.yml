@@ -150,6 +150,9 @@ jobs:
           # player, so its bundled MOD/MED music cannot be played.
           rm -rf helixscreen-stage/opt/helixscreen/assets/sounds
 
+          python3 .github/scripts/trim-helixscreen-cc1.py \
+            helixscreen-stage/opt/helixscreen
+
           install -m 0755 helixscreen-src/config/helixscreen.init \
             helixscreen-stage/helixscreen.init
           tar -C helixscreen-stage -czf helixscreen-stage/helixscreen-cc1-built.tar.gz \
